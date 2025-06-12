@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://febi.iainpalopo.ac.id/pages/gacor.xml
